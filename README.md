@@ -1,12 +1,15 @@
-# IL2CPP-Resolver
-unity il2cpp game hacking library (internal) [C++11+]
+# IL2CPP-BRIDGE
+provides an easy-to-use API to interact with Unity IL2CPP from native C++ code (internal)(C++20+)
 
 # how to use
-include il2cpp_resolver.h in your project
+include il2cpp_bridge.h in your project
 
-call ```il2cpp::init()``` exactly once before using it! (not really necessary anymore)
+call ```il2cpp::api::init()``` exactly once before using it.
 
 # doc
+
+HUGE REWORK CURRENTLY WIP
+
 ## how to call a function
 ```C++
 auto result = il2cpp::call_function<[return type]>(il2cpp::get_method("[namespace]", "[class_name]", "[method_name]"), [class_instance], [argument(s)], [method]);
