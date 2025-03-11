@@ -28,11 +28,7 @@
 
 ### Installation
 
-1. **Clone the Repository:**
-   ```sh
-   git clone https://github.com/your_username/il2cpp-bridge.git
-   ```
-2. **Include the Header:**
+1. **Include the Header:**
    ```C++
    #include "il2cpp_resolver.h"
    ```
@@ -40,6 +36,7 @@
 ### Usage
 
 **Library Initialization**
+
 Before using any functionality, initialize the library by supplying the assembly file and assembly name:
 ```C++
 if (!il2cpp::API::InitializeLibrary("GameAssembly.dll", "Assembly-CSharp")) {
@@ -49,6 +46,7 @@ if (!il2cpp::API::InitializeLibrary("GameAssembly.dll", "Assembly-CSharp")) {
 ```
 
 **Dynamic Method Invocation**
+
 Call instance methods:
 ```C++
 // Example: Call an instance method 'get_Health' from the 'Player' class.
@@ -63,6 +61,7 @@ int score = il2cpp::API::CallStaticMethod<int, int>("Assets.Scripts.Unity", "Gam
 ```
 
 **Dynamic Field Access**
+
 For instance fields:
 ```C++
 // Access an instance field from a player object.
@@ -86,3 +85,6 @@ Contributions are welcome! If you have suggestions or improvements, please fork 
 ## License
 
 Distributed under the MIT License. See the LICENSE file for more details.
+
+[license-shield]: https://img.shields.io/github/license/FigmaFan/il2cpp-bridge.svg?style=for-the-badge
+[license-url]: https://github.com/FigmaFan/il2cpp-bridge/blob/master/LICENSE.txt
