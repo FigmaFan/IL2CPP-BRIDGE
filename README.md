@@ -1,10 +1,10 @@
 # IL2CPP Bridge
 
-[![License][license-shield]][license-url]
+[![Stars][stars-shield]][stars-url] [![Forks][forks-shield]][forks-url] [![Contributors][contributors-shield]][contributors-url] [![License][license-shield]][license-url]
 
 ## About The Project
 
-**IL2CPP Bridge** is a lightweight, dynamic C++ library designed to interface with Unity IL2CPP applications. It enables dynamic resolution of IL2CPP exports, methods, and fields without relying on hardcoded offsets or version-specific details. This makes your tool more resilient to changes between Unity versions, as long as the underlying IL2CPP signatures remain compatible.
+**IL2CPP Bridge** is a lightweight, dynamic C++ library designed to interface with Unity IL2CPP applications. It enables dynamic resolution of IL2CPP methods and fields without relying on hardcoded offsets or version-specific details. This should make your "tool" more resilient to changes between game versions, as long as the underlying IL2CPP signatures remain compatible.
 
 ### Features
 
@@ -88,3 +88,9 @@ Distributed under the MIT License. See the LICENSE file for more details.
 
 [license-shield]: https://img.shields.io/github/license/FigmaFan/il2cpp-bridge.svg?style=for-the-badge
 [license-url]: https://github.com/FigmaFan/il2cpp-bridge/blob/master/LICENSE.txt
+[stars-shield]: https://img.shields.io/github/stars/FigmaFan/il2cpp-bridge.svg?style=for-the-badge
+[stars-url]: https://github.com/FigmaFan/your_repo/stargazers
+[forks-shield]: https://img.shields.io/github/forks/FigmaFan/your_repo.svg?style=for-the-badge
+[forks-url]: https://github.com/FigmaFan/IL2CPP-BRIDGE/network/members
+[contributors-shield]: https://img.shields.io/github/contributors/FigmaFan/il2cpp-bridge.svg?style=for-the-badge
+[contributors-url]: https://github.com/FigmaFan/il2cpp-bridge/graphs/contributors
