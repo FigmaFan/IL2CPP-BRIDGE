@@ -45,6 +45,25 @@ if (!il2cpp::API::InitializeLibrary("GameAssembly.dll", "Assembly-CSharp")) {
 }
 ```
 
+**Switching Assemblies**
+
+Sometimes you need to work with types that are not defined in your game’s assembly but instead reside in a core assembly like mscorlib. You can switch the global assembly context using the provided SwitchAssembly function. For example, to access a field on a List<T> from mscorlib:
+```C++
+// Switch to mscorlib to work with core types.
+il2cpp::API::SwitchAssembly("mscorlib");
+
+// Use DynamicFieldInfo to access the List<T> fields.
+il2cpp::API::DynamicFieldInfo listFields(
+    pAchievementsList,                  // pointer to your list instance
+    "System.Collections.Generic",       // namespace
+    "List`1"                           // class name with generic indicator
+);
+int listSize = listFields.Get<int>("_size");
+
+// Optionally, switch back to your game assembly when done.
+il2cpp::API::SwitchAssembly("Assembly-CSharp");
+```
+
 **Dynamic Method Invocation**
 
 Call instance methods:
