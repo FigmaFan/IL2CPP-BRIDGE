@@ -90,7 +90,7 @@ Distributed under the MIT License. See the LICENSE file for more details.
 [license-url]: https://github.com/FigmaFan/il2cpp-bridge/blob/master/LICENSE.txt
 [stars-shield]: https://img.shields.io/github/stars/FigmaFan/il2cpp-bridge.svg?style=for-the-badge
 [stars-url]: https://github.com/FigmaFan/your_repo/stargazers
-[forks-shield]: https://img.shields.io/github/forks/FigmaFan/your_repo.svg?style=for-the-badge
+[forks-shield]: https://img.shields.io/github/forks/FigmaFan/il2cpp-bridge.svg?style=for-the-badge
 [forks-url]: https://github.com/FigmaFan/il2cpp-bridge/network/members
 [contributors-shield]: https://img.shields.io/github/contributors/FigmaFan/il2cpp-bridge.svg?style=for-the-badge
 [contributors-url]: https://github.com/FigmaFan/il2cpp-bridge/graphs/contributors
