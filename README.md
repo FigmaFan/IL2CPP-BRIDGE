@@ -1,109 +1,236 @@
-# IL2CPP Bridge
+# Unity IL2CPP Bridge
 
 [![Stars][stars-shield]][stars-url] [![Forks][forks-shield]][forks-url] [![Contributors][contributors-shield]][contributors-url] [![License][license-shield]][license-url]
 
 ## About The Project
 
-**IL2CPP Bridge** is a lightweight, dynamic C++ library designed to interface with Unity IL2CPP applications. It enables dynamic resolution of IL2CPP methods and fields without relying on hardcoded offsets or version-specific details. This should make your "tool" more resilient to changes between game versions, as long as the underlying IL2CPP signatures remain compatible.
+**Unity IL2CPP Bridge** is a small, header-only C++ library that resolves Unity IL2CPP metadata and functions at runtime — no hardcoded offsets required. It dynamically finds classes, methods, and fields and lets you call managed methods safely. All operations return a `Result<T>` with explicit status codes, and the library automatically attaches the calling thread to the IL2CPP domain when needed.
 
 ### Features
 
-- **Dynamic Export Resolution:** Automatically resolve IL2CPP exports at runtime using caching and thread-safe mechanisms.
-- **Dynamic Method Invocation:** Call both instance and static methods with ease using simple helper functions.
-- **Dynamic Field Access:** Retrieve and set both instance and static field values dynamically.
-- **Version Independence:** Designed to work with multiple Unity versions without needing extensive modifications.
+- **Dynamic export resolution** from `GameAssembly.dll` (with caching and thread-safety).
+- **Class/Method lookup** via namespace, class, method, and assembly name.
+- **Managed calls** to static and instance methods using a type-safe template API.
+- **Field accessors** for both instance and static fields.
+- **String helpers** to create `System.String` and convert to `std::string`.
+- **Array helpers** for 1D arrays: length and element access.
+- **Version-friendly**: resilient as long as IL2CPP signatures remain stable.
 
 ## Built With
 
 - C++17
-- Windows API
+- Windows API (Win32)
+- MSVC recommended
 
 ## Getting Started
 
 ### Prerequisites
 
-- A C++17 compliant compiler (e.g. MSVC, Clang, or GCC on Windows)
-- Windows operating system
-- An IL2CPP-based Unity application (e.g. with a `GameAssembly.dll`)
+- Windows
+- C++17 compiler (MSVC recommended)
+- IL2CPP-based Unity application (with `GameAssembly.dll`)
 
 ### Installation
 
-1. **Include the Header:**
-   ```C++
-   #include "il2cpp_resolver.h"
-   ```
+1) Include the header:
+```cpp
+#include "il2cpp/il2cpp_resolver.h"
+```
 
-### Usage
-
-**Library Initialization**
-
-Before using any functionality, initialize the library by supplying the assembly file and assembly name:
-```C++
-if (!il2cpp::API::InitializeLibrary("GameAssembly.dll", "Assembly-CSharp")) {
-    MessageBoxW(NULL, L"Could not initialize IL2CPP API", L"IL2CPP Error", MB_OK | MB_ICONERROR);
-    return;
+2) Initialize early (e.g., in your DLL entry point):
+```cpp
+const auto st = il2cpp::init();
+if (st != Il2CppStatus::OK) {
+    // Handle error / log status
 }
 ```
 
-**Switching Assemblies**
+> `il2cpp::init()` locates `GameAssembly.dll` and binds the required IL2CPP exports.
 
-Sometimes you need to work with types that are not defined in your game’s assembly but instead reside in a core assembly like mscorlib. You can switch the global assembly context using the provided SwitchAssembly function. For example, to access a field on a List<T> from mscorlib:
-```C++
-// Switch to mscorlib to work with core types.
-il2cpp::API::SwitchAssembly("mscorlib");
+---
 
-// Use DynamicFieldInfo to access the List<T> fields.
-il2cpp::API::DynamicFieldInfo listFields(
-    pAchievementsList,                  // pointer to your list instance
-    "System.Collections.Generic",       // namespace
-    "List`1"                           // class name with generic indicator
+## Usage
+
+### Working with `Result<T>`
+
+Every resolver/caller returns `Result<T>`:
+```cpp
+auto mi = il2cpp::get_method("Assets.Scripts.Unity", "Game", "get_Player", "Assembly-CSharp");
+if (!mi) {
+    // Inspect mi.status
+}
+// Use the value:
+auto* methodInfo = mi.value;
+```
+
+For `void` returns you’ll get `Result<void>` (with only `status`).
+
+---
+
+### Resolve Classes & Methods
+
+```cpp
+// Class:
+auto klass = il2cpp::find_class("Assets.Scripts.Unity", "Game", "Assembly-CSharp");
+if (!klass) { /* check klass.status */ }
+
+// Method (optional: param_count for overloads)
+auto getPlayer = il2cpp::get_method(
+    "Assets.Scripts.Unity", "Game", "get_Player", "Assembly-CSharp" /*, std::optional<int>{0} */
 );
-int listSize = listFields.Get<int>("_size");
-
-// Optionally, switch back to your game assembly when done.
-il2cpp::API::SwitchAssembly("Assembly-CSharp");
+if (!getPlayer) { /* check getPlayer.status */ }
 ```
 
-**Dynamic Method Invocation**
+---
 
-Call instance methods:
-```C++
-// Example: Call an instance method 'get_Health' from the 'Player' class.
-void* player = /* pointer to player object */;
-int health = il2cpp::API::CallMethod<int, int>("Assets.Scripts.Unity", "Player", "get_Health", player, 0);
+### Managed Calls (static & instance)
+
+`call_function<Ret>(methodInfo, args...)` invokes the IL2CPP **MethodPointer** (fastcall).  
+The thread is automatically attached to the IL2CPP domain when needed.
+
+**Example: static getter without parameters**
+```cpp
+auto mi = il2cpp::get_method("Assets.Scripts.Unity", "Game", "get_Player", "Assembly-CSharp");
+if (mi) {
+    auto playerRes = il2cpp::call_function<void*>(mi.value /* no instance */, 0 /* if signature expects a dummy */);
+    if (playerRes) {
+        void* pPlayer = playerRes.value;
+        // ...
+    }
+}
 ```
 
-Call static methods:
-```C++
-// Example: Call a static method 'get_PlayerScore' from the 'Game' class.
-int score = il2cpp::API::CallStaticMethod<int, int>("Assets.Scripts.Unity", "Game", "get_PlayerScore", 42);
+**Example: instance method**
+```cpp
+void* pPlayer = /* instance */;
+auto mi = il2cpp::get_method("Assets.Scripts.Unity.Player", "Btd6Player", "GainPlayerXP", "Assembly-CSharp", 2);
+if (mi) {
+    // Signature example: void GainPlayerXP(float xp, int someFlag)
+    auto res = il2cpp::call_function<void>(mi.value, pPlayer, 1234.0f, 0);
+    if (!res) { /* handle res.status */ }
+}
 ```
 
-**Dynamic Field Access**
-
-For instance fields:
-```C++
-// Access an instance field from a player object.
-il2cpp::API::DynamicFieldInfo playerFields(player, "Assets.Scripts.Unity", "Player");
-int currentScore = playerFields.Get<int>("score");
-playerFields.Set<int>("score", currentScore + 10);
+**Return value**
+```cpp
+auto mi = il2cpp::get_method("System", "Array", "GetLength", "mscorlib", 1);
+if (!mi) mi = il2cpp::get_method("System", "Array", "GetLength", "System.Private.CoreLib", 1);
+if (mi) {
+    auto len = il2cpp::call_function<int>(mi.value, someArray, 0);
+    if (len) {
+        int n = len.value;
+    }
+}
 ```
 
-For static fields:
-```C++
-// Access a static field from the Game class.
-il2cpp::API::DynamicStaticFieldInfo gameStaticFields("Assets.Scripts.Unity", "Game");
-int highScore = gameStaticFields.Get<int>("highScore");
-gameStaticFields.Set<int>("highScore", 200);
+---
+
+### Fields: instance & static
+
+**Instance field get/set**
+```cpp
+// Read
+auto val = il2cpp::get_object_field_value<int>(
+    instance, "Assets.Scripts.Unity.Player", "Btd6Player", "someField", "Assembly-CSharp"
+);
+if (val) {
+    int x = val.value;
+}
+
+// Write
+auto st = il2cpp::set_object_field_value<int>(
+    instance, "Assets.Scripts.Unity.Player", "Btd6Player", "someField", 42, "Assembly-CSharp"
+);
 ```
+
+**Static field get/set**
+```cpp
+auto cls = il2cpp::find_class("Assets.Scripts.Unity.UI_New.Popups", "PopupScreen", "Assembly-CSharp");
+if (cls) {
+    auto s = il2cpp::get_static_field_value<void*>(cls.value, "instance");
+    if (s) {
+        void* pSingleton = s.value;
+    }
+}
+```
+
+---
+
+### Strings
+
+```cpp
+// Create System.String
+auto s = il2cpp::CreateNewString("hello");
+if (s) {
+    void* sysStr = s.value;
+}
+
+// System.String -> std::string
+std::string cpp = il2cpp::convert_to_std_string(sysStr);
+```
+
+> `CreateNewString` and `call_function` manage `ensure_thread_attached()` for you.
+
+---
+
+### Arrays (1D helpers)
+
+```cpp
+auto len = il2cpp::array_get_length_1d(arrPtr); // Result<int>
+if (len) {
+    for (int i = 0; i < len.value; ++i) {
+        auto elem = il2cpp::array_get_element_1d<void*>(arrPtr, i); // templated
+        if (elem) {
+            void* e = elem.value;
+            // ...
+        }
+    }
+}
+```
+
+---
+
+## Status & Error Text
+
+Each operation yields an `Il2CppStatus`. For logging:
+```cpp
+LOG(INFO, "status: ", to_string(result.status));
+```
+
+**Notable statuses**
+- `GameAssemblyNotFound`, `GetProcAddressFailed`
+- `DomainUnavailable`, `AssemblyNotFound`, `ImageUnavailable`
+- `ClassNotFound`, `MethodNotFound`, `FieldNotFound`
+- `MethodPointerNull`, `ThreadAttachUnavailable`
+- `InvalidArgs`, `OK`
+
+---
+
+## Cleanup
+
+Optionally clean up on unload:
+```cpp
+il2cpp::cleanup(); // detach thread, clear caches
+```
+
+---
+
+## Notes & Tips
+
+- Depending on Unity/.NET, the core assembly can be **`mscorlib`** or **`System.Private.CoreLib`**. Array helpers try both automatically.
+- For ambiguous overloads specify `param_count` (5th argument of `get_method`).
+- `call_function<Ret>` uses **fastcall**, matching IL2CPP `MethodPointer` ABI.
+- The helpers are **header-only** and thread-safe when resolving exports (internal mutex + cache).
+
+---
 
 ## Contributing
 
-Contributions are welcome! If you have suggestions or improvements, please fork the repository and open a pull request. For major changes, please open an issue first to discuss your ideas.
+Contributions are welcome! Please open issues/PRs with a minimal repro and test against the current header.
 
 ## License
 
-Distributed under the MIT License. See the LICENSE file for more details.
+MIT — see LICENSE.
 
 [license-shield]: https://img.shields.io/github/license/FigmaFan/il2cpp-bridge.svg?style=for-the-badge
 [license-url]: https://github.com/FigmaFan/il2cpp-bridge/blob/master/LICENSE.txt

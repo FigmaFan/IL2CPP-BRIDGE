@@ -1,86 +1,156 @@
-#pragma once
+﻿#pragma once
 
-#include <Windows.h>
-#include <string.h>
+// ==============================
+// il2cpp_resolver.hpp (v2.2)
+// ==============================
+
+#include <cstdint>
 #include <string>
+#include <string_view>
+#include <optional>
+#include <unordered_map>
+#include <mutex>
+#include <type_traits>
+#include <windows.h>
 
-#define ASSEMBLY_FILE "GameAssembly.dll"
-#define ASSEMBLY_NAME "Assembly-CSharp"
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
 
-#define ASSERT(x) { MessageBox(NULL, x, "il2cpp error", MB_OK | MB_ICONERROR); return false; }
+#define IL2CPP_GAMEASSEMBLY_FILE "GameAssembly.dll"
+#define IL2CPP_FALLBACK_ASSEMBLY "Assembly-CSharp"
 
-namespace il2cpp
-{
-	namespace _internal
-	{
+enum class Il2CppStatus : uint32_t {
+	OK = 0,
+
+	// Loading / Plattform
+	GameAssemblyNotFound,
+	GetProcAddressFailed,
+
+	// IL2CPP Exports
+	Missing_domain_get,
+	Missing_thread_attach,
+	Missing_domain_get_assemblies,
+	Missing_class_from_name,
+	Missing_class_get_method_from_name,
+	Missing_class_get_field_from_name,
+	Missing_field_get_set,
+
+	// Resolver
+	DomainUnavailable,
+	AssemblyNotFound,
+	ImageUnavailable,
+	ClassNotFound,
+	MethodNotFound,
+	FieldNotFound,
+	InvalidArgs,
+
+	// Thread / Calls
+	ThreadAttachUnavailable,
+	MethodPointerNull,
+};
+
+template <typename T>
+struct Result {
+	Il2CppStatus status{ Il2CppStatus::OK };
+	T            value{};
+	explicit operator bool() const { return status == Il2CppStatus::OK; }
+};
+
+template <>
+struct Result<void> {
+	Il2CppStatus status{ Il2CppStatus::OK };
+	explicit operator bool() const { return status == Il2CppStatus::OK; }
+};
+
+inline const char* to_string(Il2CppStatus s) {
+	switch (s) {
+	case Il2CppStatus::OK: return "OK";
+	case Il2CppStatus::GameAssemblyNotFound: return "GameAssemblyNotFound";
+	case Il2CppStatus::GetProcAddressFailed: return "GetProcAddressFailed";
+	case Il2CppStatus::Missing_domain_get: return "Missing_domain_get";
+	case Il2CppStatus::Missing_thread_attach: return "Missing_thread_attach";
+	case Il2CppStatus::Missing_domain_get_assemblies: return "Missing_domain_get_assemblies";
+	case Il2CppStatus::Missing_class_from_name: return "Missing_class_from_name";
+	case Il2CppStatus::Missing_class_get_method_from_name: return "Missing_class_get_method_from_name";
+	case Il2CppStatus::Missing_class_get_field_from_name: return "Missing_class_get_field_from_name";
+	case Il2CppStatus::Missing_field_get_set: return "Missing_field_get_set";
+	case Il2CppStatus::DomainUnavailable: return "DomainUnavailable";
+	case Il2CppStatus::AssemblyNotFound: return "AssemblyNotFound";
+	case Il2CppStatus::ImageUnavailable: return "ImageUnavailable";
+	case Il2CppStatus::ClassNotFound: return "ClassNotFound";
+	case Il2CppStatus::MethodNotFound: return "MethodNotFound";
+	case Il2CppStatus::FieldNotFound: return "FieldNotFound";
+	case Il2CppStatus::InvalidArgs: return "InvalidArgs";
+	case Il2CppStatus::ThreadAttachUnavailable: return "ThreadAttachUnavailable";
+	case Il2CppStatus::MethodPointerNull: return "MethodPointerNull";
+	default: return "Unknown";
+	}
+}
+
+namespace il2cpp {
+	namespace _internal {
 		namespace unity_structs {
-			struct il2cppImage
-			{
+			struct il2cppImage {
 				const char* m_pName;
 				const char* m_oNameNoExt;
 			};
 
-			struct il2cppAssemblyName
-			{
-				const char* m_pName;
-				const char* m_pCulture;
-				const char* m_pHash;
-				const char* m_pPublicKey;
-				unsigned int m_uHash;
-				int m_iHashLength;
-				unsigned int m_uFlags;
-				int m_iMajor;
-				int m_iMinor;
-				int m_iBuild;
-				int m_bRevision;
-				unsigned char m_uPublicKeyToken[8];
+			struct il2cppAssemblyName {
+				const char* m_pName{};
+				const char* m_pCulture{};
+				const char* m_pHash{};
+				const char* m_pPublicKey{};
+				unsigned int m_uHash{};
+				int m_iHashLength{};
+				unsigned int m_uFlags{};
+				int m_iMajor{};
+				int m_iMinor{};
+				int m_iBuild{};
+				int m_bRevision{};
+				unsigned char m_uPublicKeyToken[8]{};
 			};
 
-			struct il2cppAssembly
-			{
-				il2cppImage* m_pImage;
-				unsigned int m_uToken;
-				int m_ReferencedAssemblyStart;
-				int m_ReferencedAssemblyCount;
-				il2cppAssemblyName m_aName;
+			struct il2cppAssembly {
+				il2cppImage* m_pImage{};
+				unsigned int m_uToken{};
+				int m_ReferencedAssemblyStart{};
+				int m_ReferencedAssemblyCount{};
+				il2cppAssemblyName m_aName{};
 			};
 
-			struct il2cppClass
-			{
-				void* m_pImage;
-				void* m_pGC;
-				const char* m_pName;
-				const char* m_pNamespace;
-				void* m_pValue;
-				void* m_pArgs;
-				il2cppClass* m_pElementClass;
-				il2cppClass* m_pCastClass;
-				il2cppClass* m_pDeclareClass;
-				il2cppClass* m_pParentClass;
-				void* m_pGenericClass;
-				void* m_pTypeDefinition;
-				void* m_pInteropData;
-				void* m_pFields;
-				void* m_pEvents;
-				void* m_pProperties;
-				void** m_pMethods;
-				il2cppClass** m_pNestedTypes;
-				il2cppClass** m_ImplementedInterfaces;
-				void* m_pInterfaceOffsets;
-				void* m_pStaticFields;
-				void* m_pRGCTX;
+			struct il2cppClass {
+				void* m_pImage{};
+				void* m_pGC{};
+				const char* m_pName{};
+				const char* m_pNamespace{};
+				void* m_pValue{};
+				void* m_pArgs{};
+				il2cppClass* m_pElementClass{};
+				il2cppClass* m_pCastClass{};
+				il2cppClass* m_pDeclareClass{};
+				il2cppClass* m_pParentClass{};
+				void* m_pGenericClass{};
+				void* m_pTypeDefinition{};
+				void* m_pInteropData{};
+				void* m_pFields{};
+				void* m_pEvents{};
+				void* m_pProperties{};
+				void** m_pMethods{};
+				il2cppClass** m_pNestedTypes{};
+				il2cppClass** m_ImplementedInterfaces{};
+				void* m_pInterfaceOffsets{};
+				void* m_pStaticFields{};
+				void* m_pRGCTX{};
 			};
 
-			struct il2cppObject
-			{
+			struct il2cppObject {
 				il2cppClass* m_pClass = nullptr;
 				void* m_pMonitor = nullptr;
 			};
 
-			struct il2cppType
-			{
-				union
-				{
+			struct il2cppType {
+				union {
 					void* m_pDummy;
 					unsigned int m_uClassIndex;
 					il2cppType* m_pType;
@@ -95,58 +165,49 @@ namespace il2cpp
 				unsigned int m_uPinned : 1;
 			};
 
-			struct il2cppFieldInfo
-			{
-				const char* m_pName;
-				il2cppType* m_pType;
-				il2cppClass* m_pParentClass;
-				int m_iOffset;
-				int m_iAttributeIndex;
-				unsigned int m_uToken;
+			struct il2cppFieldInfo {
+				const char* m_pName{};
+				il2cppType* m_pType{};
+				il2cppClass* m_pParentClass{};
+				int m_iOffset{};
+				int m_iAttributeIndex{};
+				unsigned int m_uToken{};
 			};
 
-			struct il2cppParameterInfo
-			{
-				const char* m_pName;
-				int m_iPosition;
-				unsigned int m_uToken;
-				il2cppType* m_pParameterType;
+			struct il2cppParameterInfo {
+				const char* m_pName{};
+				int m_iPosition{};
+				unsigned int m_uToken{};
+				il2cppType* m_pParameterType{};
 			};
 
-			struct il2cppMethodInfo
-			{
-				void* m_pMethodPointer;
-				void* m_pInvokerMethod;
-				const char* m_pName;
-				il2cppClass* m_pClass;
-				il2cppType* m_pReturnType;
-				il2cppParameterInfo* m_pParameters;
-
-				union
-				{
+			struct il2cppMethodInfo {
+				void* m_pMethodPointer{};
+				void* m_pInvokerMethod{};
+				const char* m_pName{};
+				il2cppClass* m_pClass{};
+				il2cppType* m_pReturnType{};
+				il2cppParameterInfo* m_pParameters{};
+				union {
 					void* m_pRGCTX;
 					void* m_pMethodDefinition;
 				};
-
-				union
-				{
+				union {
 					void* m_pGenericMethod;
 					void* m_pGenericContainer;
 				};
-
-				unsigned int m_uToken;
-				unsigned short m_uFlags;
-				unsigned short m_uFlags2;
-				unsigned short m_uSlot;
-				unsigned char m_uArgsCount;
+				unsigned int m_uToken{};
+				unsigned short m_uFlags{};
+				unsigned short m_uFlags2{};
+				unsigned short m_uSlot{};
+				unsigned char m_uArgsCount{};
 				unsigned char m_uGeneric : 1;
 				unsigned char m_uInflated : 1;
 				unsigned char m_uWrapperType : 1;
 				unsigned char m_uMarshaledFromNative : 1;
 			};
 
-			struct il2cppPropertyInfo
-			{
+			struct il2cppPropertyInfo {
 				il2cppClass* m_pParentClass;
 				const char* m_pName;
 				il2cppMethodInfo* m_pGet;
@@ -155,20 +216,17 @@ namespace il2cpp
 				unsigned int m_uToken;
 			};
 
-			struct il2cppArrayBounds
-			{
+			struct il2cppArrayBounds {
 				unsigned long long m_uLength;
 				int m_iLowerBound;
 			};
 
-			struct Il2CppRuntimeInterfaceOffsetPair
-			{
+			struct Il2CppRuntimeInterfaceOffsetPair {
 				il2cppClass* interfaceType;
 				int32_t offset;
 			};
 
-			struct Il2CppClass_1
-			{
+			struct Il2CppClass_1 {
 				void* image;
 				void* gc_desc;
 				const char* name;
@@ -196,47 +254,45 @@ namespace il2cpp
 			{
 				il2cppClass** typeHierarchy;
 				void* unity_user_data;
-				UINT32 initializationExceptionGCHandle;
-				UINT32 cctor_started;
-				UINT32 cctor_finished;
+				std::uint32_t initializationExceptionGCHandle;
+				std::uint32_t cctor_started;
+				std::uint32_t cctor_finished;
 				size_t cctor_thread;
 				void* genericContainerHandle;
-				UINT32 instance_size;
-				UINT32 actualSize;
-				UINT32 element_size;
-				INT32 native_size;
-				UINT32 static_fields_size;
-				UINT32 thread_static_fields_size;
-				INT32 thread_static_fields_offset;
-				UINT32 flags;
-				UINT32 token;
-				UINT16 method_count;
-				UINT16 property_count;
-				UINT16 field_count;
-				UINT16 event_count;
-				UINT16 nested_type_count;
-				UINT16 vtable_count;
-				UINT16 interfaces_count;
-				UINT16 interface_offsets_count;
-				UINT8 typeHierarchyDepth;
-				UINT8 genericRecursionDepth;
-				UINT8 rank;
-				UINT8 minimumAlignment;
-				UINT8 naturalAligment;
-				UINT8 packingSize;
-				UINT8 bitflags1;
-				UINT8 bitflags2;
+				std::uint32_t instance_size;
+				std::uint32_t actualSize;
+				std::uint32_t element_size;
+				std::int32_t native_size;
+				std::uint32_t static_fields_size;
+				std::uint32_t thread_static_fields_size;
+				std::int32_t thread_static_fields_offset;
+				std::uint32_t flags;
+				std::uint32_t token;
+				std::uint16_t method_count;
+				std::uint16_t property_count;
+				std::uint16_t field_count;
+				std::uint16_t event_count;
+				std::uint16_t nested_type_count;
+				std::uint16_t vtable_count;
+				std::uint16_t interfaces_count;
+				std::uint16_t interface_offsets_count;
+				std::uint8_t typeHierarchyDepth;
+				std::uint8_t genericRecursionDepth;
+				std::uint8_t rank;
+				std::uint8_t minimumAlignment;
+				std::uint8_t naturalAligment;
+				std::uint8_t packingSize;
+				std::uint8_t bitflags1;
+				std::uint8_t bitflags2;
 			};
 
 			typedef void(*Il2CppMethodPointer)();
-			struct VirtualInvokeData
-			{
+			struct VirtualInvokeData {
 				Il2CppMethodPointer methodPtr;
 				const il2cppMethodInfo* method;
 			};
 
-			struct System_String_VTable
-			{
+			struct System_String_VTable {
 				VirtualInvokeData _0_Equals;
 				VirtualInvokeData _1_Finalize;
 				VirtualInvokeData _2_GetHashCode;
@@ -266,8 +322,7 @@ namespace il2cpp
 				VirtualInvokeData _26_Clone;
 			};
 
-			struct System_String_c
-			{
+			struct System_String_c {
 				Il2CppClass_1 _1;
 				struct System_String_StaticFields* static_fields;
 				void* rgctx_data;
@@ -277,233 +332,418 @@ namespace il2cpp
 
 			struct __declspec(align(8)) System_String_Fields
 			{
-				UINT32 _stringLength;
-				UINT16 _firstChar;
+				std::uint32_t _stringLength;
+				std::uint16_t _firstChar;
 			};
 
-			struct System_String_o
-			{
+			struct System_String_o {
 				System_String_c* klass;
 				void* monitor;
 				System_String_Fields fields;
 			};
 		}
 
-		inline HMODULE p_game_assembly = GetModuleHandleA(ASSEMBLY_FILE);
-		inline _internal::unity_structs::il2cppAssembly* p_assembly = nullptr;
+		inline HMODULE p_game_assembly = nullptr;
+
+		inline std::unordered_map<std::string, unity_structs::il2cppAssembly*> g_assembly_cache;
+		inline std::mutex g_cache_mtx;
+
+		inline Result<HMODULE> ensure_game_assembly() {
+			if (p_game_assembly) return { Il2CppStatus::OK, p_game_assembly };
+			for (int i = 0; i < 200 && !p_game_assembly; ++i) {
+				p_game_assembly = ::GetModuleHandleA(IL2CPP_GAMEASSEMBLY_FILE);
+				if (!p_game_assembly) ::Sleep(10);
+			}
+			if (!p_game_assembly) return { Il2CppStatus::GameAssemblyNotFound, nullptr };
+			return { Il2CppStatus::OK, p_game_assembly };
+		}
 
 		template <class T>
-		T resolve_export(::std::string name) {
-			return reinterpret_cast<T>(GetProcAddress((HMODULE)p_game_assembly, name.c_str()));
+		inline Result<T> resolve_export(std::string_view name) {
+			auto mod = ensure_game_assembly();
+			if (!mod) return { mod.status, nullptr };
+			auto p = reinterpret_cast<T>(::GetProcAddress(mod.value, std::string(name).c_str()));
+			if (!p) return { Il2CppStatus::GetProcAddressFailed, nullptr };
+			return { Il2CppStatus::OK, p };
 		}
 
-		inline auto resolve_call = resolve_export<void* (__fastcall*)(const char*)>("il2cpp_resolve_icall");
-		inline auto get_domain = resolve_export<void* (__fastcall*)(void)>("il2cpp_domain_get");
-		inline auto thread_attach = resolve_export<void* (__fastcall*)(void*)>("il2cpp_thread_attach");
-		inline auto get_assemblies = resolve_export<unity_structs::il2cppAssembly * *(__fastcall*)(void*, size_t*)>("il2cpp_domain_get_assemblies");
-		inline auto class_from_name = resolve_export<unity_structs::il2cppClass * (__fastcall*)(unity_structs::il2cppImage*, const char*, const char*)>("il2cpp_class_from_name");
-		inline auto method_from_name = resolve_export<unity_structs::il2cppMethodInfo * (__fastcall*)(unity_structs::il2cppClass*, const char*, int)>("il2cpp_class_get_method_from_name");
-		inline auto field_from_name = resolve_export<unity_structs::il2cppFieldInfo * (__fastcall*)(unity_structs::il2cppClass*, const char*)>("il2cpp_class_get_field_from_name");
-		inline auto static_field_get_value = resolve_export<void(__fastcall*)(unity_structs::il2cppFieldInfo*, void*)>("il2cpp_field_static_get_value");
-		inline auto static_field_set_value = resolve_export<void(__fastcall*)(unity_structs::il2cppFieldInfo*, void*)>("il2cpp_field_static_set_value");
-		inline auto create_new_string = resolve_export<unity_structs::System_String_o * (__fastcall*)(const char*)>("il2cpp_string_new");
-		inline auto field_set_value = resolve_export<void(__fastcall*)(void*, unity_structs::il2cppFieldInfo*, void*)>("il2cpp_field_set_value");
-		inline auto field_get_value = resolve_export<void(__fastcall*)(void*, unity_structs::il2cppFieldInfo*, void*)>("il2cpp_field_get_value");
+		// IL2CPP Exports (function-ptrs)
+		inline auto r_il2cpp_domain_get = resolve_export<void* (__fastcall*)(void)>("il2cpp_domain_get");
+		inline auto r_il2cpp_thread_attach = resolve_export<void* (__fastcall*)(void*)>("il2cpp_thread_attach");
+		inline auto r_il2cpp_thread_detach = resolve_export<void* (__fastcall*)(void)>("il2cpp_thread_detach");
+		inline auto r_il2cpp_domain_get_assemblies = resolve_export<unity_structs::il2cppAssembly * *(__fastcall*)(void*, size_t*)>("il2cpp_domain_get_assemblies");
+		inline auto r_il2cpp_class_from_name = resolve_export<unity_structs::il2cppClass * (__fastcall*)(unity_structs::il2cppImage*, const char*, const char*)>("il2cpp_class_from_name");
+		inline auto r_il2cpp_class_get_method_from_name = resolve_export<unity_structs::il2cppMethodInfo * (__fastcall*)(unity_structs::il2cppClass*, const char*, int)>("il2cpp_class_get_method_from_name");
+		inline auto r_il2cpp_class_get_field_from_name = resolve_export<unity_structs::il2cppFieldInfo * (__fastcall*)(unity_structs::il2cppClass*, const char*)>("il2cpp_class_get_field_from_name");
+		inline auto r_il2cpp_field_get_value = resolve_export<void(__fastcall*)(void*, unity_structs::il2cppFieldInfo*, void*)>("il2cpp_field_get_value");
+		inline auto r_il2cpp_field_set_value = resolve_export<void(__fastcall*)(void*, unity_structs::il2cppFieldInfo*, void*)>("il2cpp_field_set_value");
+		inline auto r_il2cpp_field_static_get_value = resolve_export<void(__fastcall*)(unity_structs::il2cppFieldInfo*, void*)>("il2cpp_field_static_get_value");
+		inline auto r_il2cpp_field_static_set_value = resolve_export<void(__fastcall*)(unity_structs::il2cppFieldInfo*, void*)>("il2cpp_field_static_set_value");
+		inline auto r_il2cpp_string_new = resolve_export<void* (__fastcall*)(const char*)>("il2cpp_string_new");
 
-		inline _internal::unity_structs::il2cppAssembly* find_assembly(::std::string assembly_name) {
-			if (assembly_name.empty()) { return nullptr; }
+		// dereferenced function pointers (valid after ensure_exports())
+		inline void* (__fastcall* il2cpp_domain_get) (void) = nullptr;
+		inline void* (__fastcall* il2cpp_thread_attach)(void*) = nullptr;
+		inline void* (__fastcall* il2cpp_thread_detach)(void) = nullptr;
+		inline unity_structs::il2cppAssembly** (__fastcall* il2cpp_domain_get_assemblies)(void*, size_t*) = nullptr;
+		inline unity_structs::il2cppClass* (__fastcall* il2cpp_class_from_name)(unity_structs::il2cppImage*, const char*, const char*) = nullptr;
+		inline unity_structs::il2cppMethodInfo* (__fastcall* il2cpp_class_get_method_from_name)(unity_structs::il2cppClass*, const char*, int) = nullptr;
+		inline unity_structs::il2cppFieldInfo* (__fastcall* il2cpp_class_get_field_from_name)(unity_structs::il2cppClass*, const char*) = nullptr;
+		inline void(__fastcall* il2cpp_field_get_value)(void*, unity_structs::il2cppFieldInfo*, void*) = nullptr;
+		inline void(__fastcall* il2cpp_field_set_value)(void*, unity_structs::il2cppFieldInfo*, void*) = nullptr;
+		inline void(__fastcall* il2cpp_field_static_get_value)(unity_structs::il2cppFieldInfo*, void*) = nullptr;
+		inline void(__fastcall* il2cpp_field_static_set_value)(unity_structs::il2cppFieldInfo*, void*) = nullptr;
+		inline void* (__fastcall* il2cpp_string_new)(const char*) = nullptr;
 
-			size_t assembly_count = 0;
-			auto pp_assemblies = get_assemblies(get_domain(), &assembly_count);
-			for (size_t i = 0; i < assembly_count; i++) {
-				if (assembly_name.compare(pp_assemblies[i]->m_aName.m_pName) == 0) { return pp_assemblies[i]; }
+		// --------------------------
+		// Validate exports & bind
+		// --------------------------
+		inline Il2CppStatus ensure_exports() {
+			auto bind = [](auto& dst, auto& res, Il2CppStatus err) -> Il2CppStatus {
+				if (res.status != Il2CppStatus::OK || !res.value) return err;
+				dst = res.value; return Il2CppStatus::OK;
+				};
+
+			if (auto s = bind(il2cpp_domain_get, r_il2cpp_domain_get, Il2CppStatus::Missing_domain_get); s != Il2CppStatus::OK) return s;
+			if (auto s = bind(il2cpp_thread_attach, r_il2cpp_thread_attach, Il2CppStatus::Missing_thread_attach); s != Il2CppStatus::OK) return s;
+			if (auto s = bind(il2cpp_domain_get_assemblies, r_il2cpp_domain_get_assemblies, Il2CppStatus::Missing_domain_get_assemblies); s != Il2CppStatus::OK) return s;
+			if (auto s = bind(il2cpp_class_from_name, r_il2cpp_class_from_name, Il2CppStatus::Missing_class_from_name); s != Il2CppStatus::OK) return s;
+			if (auto s = bind(il2cpp_class_get_method_from_name, r_il2cpp_class_get_method_from_name, Il2CppStatus::Missing_class_get_method_from_name); s != Il2CppStatus::OK) return s;
+			if (auto s = bind(il2cpp_class_get_field_from_name, r_il2cpp_class_get_field_from_name, Il2CppStatus::Missing_class_get_field_from_name); s != Il2CppStatus::OK) return s;
+			if (auto s = bind(il2cpp_field_get_value, r_il2cpp_field_get_value, Il2CppStatus::Missing_field_get_set); s != Il2CppStatus::OK) return s;
+			if (auto s = bind(il2cpp_field_set_value, r_il2cpp_field_set_value, Il2CppStatus::Missing_field_get_set); s != Il2CppStatus::OK) return s;
+
+			if (r_il2cpp_string_new) il2cpp_string_new = r_il2cpp_string_new.value;
+			return Il2CppStatus::OK;
+		}
+
+		// --------------------------
+		// Assembly lookup + Cache
+		// --------------------------
+		inline Result<unity_structs::il2cppAssembly*>
+			find_assembly(std::string_view assembly_name) {
+			if (assembly_name.empty()) return { Il2CppStatus::InvalidArgs, nullptr };
+
+			if (auto s = ensure_exports(); s != Il2CppStatus::OK)
+				return { s, nullptr };
+
+			{   // Cache
+				std::scoped_lock lk(g_cache_mtx);
+				if (auto it = g_assembly_cache.find(std::string(assembly_name)); it != g_assembly_cache.end())
+					return { Il2CppStatus::OK, it->second };
 			}
 
-			return nullptr;
-		}
-	}
+			auto domain = il2cpp_domain_get ? il2cpp_domain_get() : nullptr;
+			if (!domain) return { Il2CppStatus::DomainUnavailable, nullptr };
 
-	template <typename ret, typename... _args>
-	inline ret call_function(_internal::unity_structs::il2cppMethodInfo* p_method, _args... args) {
-		typedef ret(*func)(_args...);
-		func fn = (func)((void*)p_method->m_pMethodPointer);
-		return fn(args...);
-	}
+			size_t count = 0;
+			auto assemblies = il2cpp_domain_get_assemblies(domain, &count);
+			if (!assemblies || count == 0) return { Il2CppStatus::AssemblyNotFound, nullptr };
 
-	inline _internal::unity_structs::il2cppClass* find_class(::std::string _namespace, ::std::string class_name, ::std::string assembly_name = "Assembly-CSharp") {
-		if (_namespace.empty() || class_name.empty()) { return nullptr; }
-
-		auto p_assembly = _internal::find_assembly(assembly_name);
-
-		if (p_assembly) {
-			if (p_assembly->m_pImage) {
-				return _internal::class_from_name(p_assembly->m_pImage, _namespace.c_str(), class_name.c_str());
+			for (size_t i = 0; i < count; ++i) {
+				const auto* a = assemblies[i];
+				if (!a) continue;
+				const char* meta = a->m_aName.m_pName;
+				const char* noext = (a->m_pImage ? a->m_pImage->m_oNameNoExt : nullptr);
+				if ((meta && assembly_name == meta) || (noext && assembly_name == noext)) {
+					std::scoped_lock lk(g_cache_mtx);
+					g_assembly_cache.emplace(std::string(assembly_name), assemblies[i]);
+					return { Il2CppStatus::OK, assemblies[i] };
+				}
 			}
+			return { Il2CppStatus::AssemblyNotFound, nullptr };
 		}
-		return nullptr;
-	}
+	} // namespace _internal
 
-	inline _internal::unity_structs::il2cppMethodInfo* get_fn_ptr(_internal::unity_structs::il2cppClass* p_class, ::std::string method_name, int args_count = 0) {
-		return _internal::method_from_name(p_class, method_name.c_str(), args_count);
-	}
+	// ------------------------------------
+	// Thread-Attach
+	// ------------------------------------
+	inline Il2CppStatus ensure_thread_attached() {
+		auto s = _internal::ensure_exports();
+		if (s != Il2CppStatus::OK) return s;
+		if (!_internal::il2cpp_domain_get || !_internal::il2cpp_thread_attach)
+			return Il2CppStatus::ThreadAttachUnavailable;
 
-	inline _internal::unity_structs::il2cppMethodInfo* get_method(::std::string _namespace, ::std::string class_name, ::std::string method_name, ::std::string assembly_name = "Assembly-CSharp") {
-		if (_namespace.empty() || class_name.empty() || method_name.empty()) { return nullptr; }
-
-		auto p_class = find_class(_namespace, class_name, assembly_name);
-
-		for (int i = 0; i < 16; i++) {
-			auto p_info = _internal::method_from_name(p_class, method_name.c_str(), i);
-
-			if (!p_info) { continue; }
-
-			return p_info;
+		thread_local bool t_attached = false;
+		if (!t_attached) {
+			auto domain = _internal::il2cpp_domain_get();
+			if (!domain) return Il2CppStatus::DomainUnavailable;
+			_internal::il2cpp_thread_attach(domain);
+			t_attached = true;
 		}
-
-		return nullptr;
+		return Il2CppStatus::OK;
 	}
 
-	inline ::std::string to_string(_internal::unity_structs::System_String_o* p_sys_str) {
-		if (!p_sys_str) { return ::std::string(); }
+	// ------------------------------------
+	// Class- & Method-Resolvers
+	// ------------------------------------
+	inline Result<_internal::unity_structs::il2cppClass*>
+		find_class(const std::string& ns,
+			const std::string& class_name,
+			const std::string& assembly_name)
+	{
+		if (ns.empty() || class_name.empty() || assembly_name.empty())
+			return { Il2CppStatus::InvalidArgs, nullptr };
+
+		auto a = _internal::find_assembly(assembly_name);
+		if (!a) return { a.status, nullptr };
+		if (!a.value->m_pImage) return { Il2CppStatus::ImageUnavailable, nullptr };
+
+		auto* klass = _internal::il2cpp_class_from_name(a.value->m_pImage, ns.c_str(), class_name.c_str());
+		if (!klass) return { Il2CppStatus::ClassNotFound, nullptr };
+		return { Il2CppStatus::OK, klass };
+	}
+
+	inline Result<_internal::unity_structs::il2cppMethodInfo*>
+		get_method(const std::string& ns,
+			const std::string& class_name,
+			const std::string& method_name,
+			const std::string& assembly_name,
+			std::optional<int> param_count = std::nullopt)
+	{
+		if (ns.empty() || class_name.empty() || method_name.empty() || assembly_name.empty())
+			return { Il2CppStatus::InvalidArgs, nullptr };
+
+		auto c = find_class(ns, class_name, assembly_name);
+		if (!c) return { c.status, nullptr };
+
+		using MI = _internal::unity_structs::il2cppMethodInfo*;
+		MI mi = nullptr;
+
+		if (param_count.has_value()) {
+			mi = _internal::il2cpp_class_get_method_from_name(c.value, method_name.c_str(), *param_count);
+		}
 		else {
-			auto w_str = ::std::wstring((wchar_t*)(&p_sys_str->fields._firstChar));
-			return ::std::string(w_str.begin(), w_str.end());
-		}
-	}
-
-	template <class type>
-	type get_object_field_value(void* p_instance, ::std::string _namespace, ::std::string class_name, ::std::string field_name, ::std::string assembly_name = "Assembly-CSharp") {
-		if (!p_instance || _namespace.empty() || class_name.empty() || field_name.empty()) { return NULL; }
-
-		const auto p_class = find_class(_namespace, class_name);
-		if (!p_class) { return NULL; }
-
-		const auto p_field = _internal::field_from_name(p_class, field_name.c_str());
-		if (!p_field) { return NULL; }
-
-		type buffer;
-		_internal::field_get_value(p_instance, p_field, &buffer);
-		return buffer;
-	}
-
-	template <class type>
-	bool set_object_field_value(void* p_instance, ::std::string _namespace, ::std::string class_name, ::std::string field_name, type value, ::std::string assembly_name = "Assembly-CSharp") {
-		if (!p_instance || _namespace.empty() || class_name.empty() || field_name.empty()) { return false; }
-
-		const auto p_class = find_class(_namespace, class_name);
-		if (!p_class) { return false; }
-
-		const auto p_field = _internal::field_from_name(p_class, field_name);
-		if (!p_field) { return false; }
-
-		_internal::field_set_value(p_instance, p_field, &value);
-		return true;
-	}
-
-	template <class type>
-	type get_static_field_value(_internal::unity_structs::il2cppClass* p_class, ::std::string field_name) {
-		if (!p_class || field_name.empty()) { return NULL; }
-
-		auto field = _internal::field_from_name(p_class, field_name.c_str());
-
-		type buffer;
-		_internal::static_field_get_value(field, &buffer);
-		return buffer;
-	}
-
-	template <class type>
-	bool set_static_field_value(_internal::unity_structs::il2cppClass* p_class, ::std::string field_name, type value) {
-		if (!p_class || field_name.empty()) { return false; }
-
-		auto p_field = _internal::field_from_name(p_class, field_name);
-		if (!p_field) { return false; }
-
-		_internal::static_field_set_value(p_field, &value);
-	}
-
-	inline int get_field_offset(::std::string _namespace, ::std::string class_name, ::std::string field_name, ::std::string assembly_name = "Assembly-CSharp") {
-		if (_namespace.empty() || class_name.empty() || field_name.empty()) { return -1; }
-
-		auto p_class = find_class(_namespace, class_name, assembly_name);
-		if (p_class) {
-			auto p_field = _internal::field_from_name(p_class, field_name.c_str());
-			if (p_field) { return p_field->m_iOffset; }
+			for (int i = 0; i <= 16 && !mi; ++i)
+				mi = _internal::il2cpp_class_get_method_from_name(c.value, method_name.c_str(), i);
 		}
 
-		return -1;
+		if (!mi) return { Il2CppStatus::MethodNotFound, nullptr };
+		if (!mi->m_pMethodPointer) return { Il2CppStatus::MethodPointerNull, mi };
+		return { Il2CppStatus::OK, mi };
 	}
 
-	inline _internal::unity_structs::System_String_o* create_new_string(::std::string str) {
-		if (str.empty()) { return nullptr; }
+	// ------------------------------------
+	// Field-Resolvers
+	// ------------------------------------
+	inline Result<int>
+		get_field_offset(const std::string& ns,
+			const std::string& class_name,
+			const std::string& field_name,
+			const std::string& assembly_name)
+	{
+		if (ns.empty() || class_name.empty() || field_name.empty() || assembly_name.empty())
+			return { Il2CppStatus::InvalidArgs, -1 };
 
-		return _internal::create_new_string(str.c_str());
+		auto c = find_class(ns, class_name, assembly_name);
+		if (!c) return { c.status, -1 };
+
+		auto* fld = _internal::il2cpp_class_get_field_from_name(c.value, field_name.c_str());
+		if (!fld) return { Il2CppStatus::FieldNotFound, -1 };
+		return { Il2CppStatus::OK, fld->m_iOffset };
 	}
 
-	/*
-	* Gets a 32-bit integer that represents the number of elements in the specified dimension of the System.Array
-	* dimension: A zero-based dimension of the System.Array whose length needs to be determined.
-	* returns: A 32-bit integer that represents the number of elements in the specified dimension.
-	*/
-	inline int get_array_size(void* p_system_array_o, int dimension) {
-		if (!p_system_array_o || dimension < 0) { return 0; }
+	template <class T>
+	inline Result<T>
+		get_object_field_value(void* instance,
+			const std::string& ns,
+			const std::string& class_name,
+			const std::string& field_name,
+			const std::string& assembly_name)
+	{
+		if (!instance) return { Il2CppStatus::InvalidArgs, T{} };
 
-		auto pGetLengthMethodInfo = get_method("System", "Array", "GetLength", "mscorlib");
-		if (pGetLengthMethodInfo) {
-			return il2cpp::call_function<int>(pGetLengthMethodInfo, p_system_array_o, dimension, 0);
+		auto c = find_class(ns, class_name, assembly_name);
+		if (!c) return { c.status, T{} };
+
+		auto* fld = _internal::il2cpp_class_get_field_from_name(c.value, field_name.c_str());
+		if (!fld) return { Il2CppStatus::FieldNotFound, T{} };
+
+		T out{};
+		_internal::il2cpp_field_get_value(instance, fld, &out);
+		return { Il2CppStatus::OK, out };
+	}
+
+	template <class T>
+	inline Il2CppStatus
+		set_object_field_value(void* instance,
+			const std::string& ns,
+			const std::string& class_name,
+			const std::string& field_name,
+			const T& value,
+			const std::string& assembly_name)
+	{
+		if (!instance) return Il2CppStatus::InvalidArgs;
+
+		auto c = find_class(ns, class_name, assembly_name);
+		if (!c) return c.status;
+
+		auto* fld = _internal::il2cpp_class_get_field_from_name(c.value, field_name.c_str());
+		if (!fld) return Il2CppStatus::FieldNotFound;
+
+		_internal::il2cpp_field_set_value(instance, fld, const_cast<T*>(&value));
+		return Il2CppStatus::OK;
+	}
+
+	template <class T>
+	inline Result<T>
+		get_static_field_value(_internal::unity_structs::il2cppClass* klass,
+			const std::string& field_name)
+	{
+		if (!klass || field_name.empty()) return { Il2CppStatus::InvalidArgs, T{} };
+		auto* fld = _internal::il2cpp_class_get_field_from_name(klass, field_name.c_str());
+		if (!fld) return { Il2CppStatus::FieldNotFound, T{} };
+
+		T out{};
+		_internal::il2cpp_field_static_get_value(fld, &out);
+		return { Il2CppStatus::OK, out };
+	}
+
+	template <class T>
+	inline Il2CppStatus
+		set_static_field_value(_internal::unity_structs::il2cppClass* klass,
+			const std::string& field_name,
+			const T& value)
+	{
+		if (!klass || field_name.empty()) return Il2CppStatus::InvalidArgs;
+		auto* fld = _internal::il2cpp_class_get_field_from_name(klass, field_name.c_str());
+		if (!fld) return Il2CppStatus::FieldNotFound;
+
+		_internal::il2cpp_field_static_set_value(fld, const_cast<T*>(&value));
+		return Il2CppStatus::OK;
+	}
+
+	// ------------------------------------
+	// String Utilities
+	// ------------------------------------
+	namespace String {
+		/*
+		* creates a new System.String instance
+		* str: value that the new System.String will contain
+		* returns: references to the created System.String instance
+		*/
+		inline Result<void*>
+			CreateNewString(const std::string& s) {
+			if (s.empty()) return { Il2CppStatus::InvalidArgs, nullptr };
+			if (!_internal::il2cpp_string_new) return { Il2CppStatus::GetProcAddressFailed, nullptr };
+			if (auto st = ensure_thread_attached(); st != Il2CppStatus::OK) return { st, nullptr };
+			return { Il2CppStatus::OK, _internal::il2cpp_string_new(s.c_str()) };
 		}
 
-		return 0;
-	}
+		/*
+		* converts a System.String to a std::string
+		* p_sys_str: System.String instance to convert
+		* returns: std::string with the content of the passed System.String
+		*/
+		inline std::string convert_to_std_string(void* p_sys_str) {
+			if (!p_sys_str) return {};
 
-	/*
-	* Gets the value at the specified position in the one-dimensional System.Array. The index is specified as a 64-bit integer.
-	* index: A 64-bit integer that represents the position of the System.Array element to get.
-	* returns: The value at the specified position in the one-dimensional System.Array.
-	*/
-	template <typename ret>
-	inline ret get_array_element(void* p_array, long long index) {
-		if (!p_array) { return NULL; }
+			auto get_off = [](const std::string& ns,
+				const std::string& cls,
+				const std::string& field,
+				const std::string& asmName) -> int {
+					auto asmRes = _internal::find_assembly(asmName);
+					if (!asmRes || !asmRes.value->m_pImage) return -1;
+					auto* k = _internal::il2cpp_class_from_name(asmRes.value->m_pImage, ns.c_str(), cls.c_str());
+					if (!k) return -1;
+					auto* f = _internal::il2cpp_class_get_field_from_name(k, field.c_str());
+					return f ? f->m_iOffset : -1;
+				};
 
-		auto pGetValueMethodInfo = get_method("System", "Array", "GetValue", "mscorlib");
-		if (pGetValueMethodInfo) {
-			return il2cpp::call_function<ret>(pGetValueMethodInfo, p_array, index, 0);
-		}
-
-		return NULL;
-	}
-
-	/*
-	* Copies the elements of the System.Collections.ArrayList to a new System.Object array.
-	* returns: An System.Object array containing copies of the elements of the System.Collections.ArrayList.
-	*/
-	inline void* convert_array_list_to_array(void* p_system_collections_arraylist_o) {
-		if (!p_system_collections_arraylist_o) { return nullptr; }
-
-		auto pToArrayMethodInfo = get_method("System.Collections", "ArrayList", "ToArray", "mscorlib");
-		if (pToArrayMethodInfo) {
-			return il2cpp::call_function<void*>(pToArrayMethodInfo, p_system_collections_arraylist_o, 0);
-		}
-
-		return nullptr;
-	}
-
-	inline bool init() {
-		if (!_internal::p_game_assembly) { ASSERT("failed to get GameAssembly.dll") }
-		if (!_internal::resolve_call) { ASSERT("failed to get resolve_call") }
-		if (!_internal::get_domain) { ASSERT("failed to get get_domain") }
-		if (!_internal::thread_attach) { ASSERT("failed to get thread_attach") }
-
-		size_t assembly_count = 0;
-		auto p_domain = _internal::get_domain();
-		if (p_domain) {
-			auto pp_assemblies = _internal::get_assemblies(p_domain, &assembly_count);
-			for (size_t i = 0; i < assembly_count; i++) {
-				if (::std::string(pp_assemblies[i]->m_aName.m_pName) == ASSEMBLY_NAME) { _internal::p_assembly = pp_assemblies[i]; }
+			int off_firstChar = get_off("System", "String", "_firstChar", "mscorlib");
+			int off_len = get_off("System", "String", "_stringLength", "mscorlib");
+			if (off_firstChar < 0 || off_len < 0) {
+				off_firstChar = get_off("System", "String", "_firstChar", "System.Private.CoreLib");
+				off_len = get_off("System", "String", "_stringLength", "System.Private.CoreLib");
 			}
+			if (off_firstChar < 0 || off_len < 0) return {};
+
+			const char16_t* wstr = reinterpret_cast<const char16_t*>(
+				reinterpret_cast<const char*>(p_sys_str) + off_firstChar);
+			const int len = *reinterpret_cast<const int*>(
+				reinterpret_cast<const char*>(p_sys_str) + off_len);
+
+			if (len <= 0) return {};
+
+			int required = ::WideCharToMultiByte(CP_UTF8, 0,
+				reinterpret_cast<LPCWCH>(wstr), len,
+				nullptr, 0, nullptr, nullptr);
+			if (required <= 0) return {};
+			std::string out(static_cast<size_t>(required), '\0');
+			::WideCharToMultiByte(CP_UTF8, 0,
+				reinterpret_cast<LPCWCH>(wstr), len,
+				out.data(), required, nullptr, nullptr);
+			return out;
+		}
+	} // namespace String
+
+	inline Result<void*> CreateNewString(const std::string& s) { return String::CreateNewString(s); }
+	inline std::string   convert_to_std_string(void* p_sys_str) { return String::convert_to_std_string(p_sys_str); }
+
+	// ------------------------------------
+	// Managed Calls
+	// ------------------------------------
+	template <typename Ret, typename... Args>
+	inline auto call_function(_internal::unity_structs::il2cppMethodInfo* method, Args... args)
+		-> std::conditional_t<std::is_void_v<Ret>, Result<void>, Result<Ret>>
+	{
+		using R = std::conditional_t<std::is_void_v<Ret>, Result<void>, Result<Ret>>;
+
+		if (!method) {
+			if constexpr (std::is_void_v<Ret>) return R{ Il2CppStatus::MethodNotFound };
+			else                                 return R{ Il2CppStatus::MethodNotFound, Ret{} };
+		}
+		if (!method->m_pMethodPointer) {
+			if constexpr (std::is_void_v<Ret>) return R{ Il2CppStatus::MethodPointerNull };
+			else                                 return R{ Il2CppStatus::MethodPointerNull, Ret{} };
+		}
+		if (auto st = ensure_thread_attached(); st != Il2CppStatus::OK) {
+			if constexpr (std::is_void_v<Ret>) return R{ st };
+			else                                 return R{ st, Ret{} };
 		}
 
-		if (!_internal::p_assembly) { ASSERT("failed to find assembly") }
+		using Fn = Ret(__fastcall*)(Args...);
+		auto fn = reinterpret_cast<Fn>(method->m_pMethodPointer);
 
-		return true;
+		if constexpr (std::is_void_v<Ret>) {
+			fn(args...);
+			return R{ Il2CppStatus::OK };
+		}
+		else {
+			return R{ Il2CppStatus::OK, fn(args...) };
+		}
 	}
-}
+
+	// ------------------------------------
+	// Arrays & Helpers
+	// ------------------------------------
+	inline Result<int> array_get_length_1d(void* arr) {
+		auto mi = get_method("System", "Array", "GetLength", "mscorlib", 1);
+		if (!mi) mi = get_method("System", "Array", "GetLength", "System.Private.CoreLib", 1);
+		if (!mi) return { mi.status, 0 };
+		return call_function<int>(mi.value, arr, 0 /*dimension*/);
+	}
+
+	template <typename Ret>
+	inline Result<Ret> array_get_element_1d(void* arr, long long idx) {
+		auto mi = get_method("System", "Array", "GetValue", "mscorlib", 1);
+		if (!mi) mi = get_method("System", "Array", "GetValue", "System.Private.CoreLib", 1);
+		if (!mi) return { mi.status, Ret{} };
+		return call_function<Ret>(mi.value, arr, idx);
+	}
+
+	// ------------------------------------
+	// Init/Cleanup
+	// ------------------------------------
+	inline Il2CppStatus init() {
+		auto mod = _internal::ensure_game_assembly();
+		if (!mod) return mod.status;
+		return _internal::ensure_exports();
+	}
+
+	inline void cleanup() {
+		if (_internal::il2cpp_thread_detach) _internal::il2cpp_thread_detach();
+		std::scoped_lock lk(_internal::g_cache_mtx);
+		_internal::g_assembly_cache.clear();
+	}
+} // namespace il2cpp
