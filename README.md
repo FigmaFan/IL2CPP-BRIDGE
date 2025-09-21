@@ -34,7 +34,7 @@
 
 1) Include the header:
 ```cpp
-#include "il2cpp/il2cpp_resolver.h"
+#include "il2cpp_resolver.hpp"
 ```
 
 2) Initialize early (e.g., in your DLL entry point):
