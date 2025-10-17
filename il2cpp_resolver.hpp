@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 // ==============================
 // il2cpp_resolver.hpp (v2.2)
@@ -380,6 +380,7 @@ namespace il2cpp {
 		inline auto r_il2cpp_field_static_get_value = resolve_export<void(__fastcall*)(unity_structs::il2cppFieldInfo*, void*)>("il2cpp_field_static_get_value");
 		inline auto r_il2cpp_field_static_set_value = resolve_export<void(__fastcall*)(unity_structs::il2cppFieldInfo*, void*)>("il2cpp_field_static_set_value");
 		inline auto r_il2cpp_string_new = resolve_export<void* (__fastcall*)(const char*)>("il2cpp_string_new");
+		inline auto r_il2cpp_object_new = resolve_export<void* (__fastcall*)(unity_structs::il2cppClass*)>("il2cpp_object_new");
 
 		// dereferenced function pointers (valid after ensure_exports())
 		inline void* (__fastcall* il2cpp_domain_get) (void) = nullptr;
@@ -394,6 +395,7 @@ namespace il2cpp {
 		inline void(__fastcall* il2cpp_field_static_get_value)(unity_structs::il2cppFieldInfo*, void*) = nullptr;
 		inline void(__fastcall* il2cpp_field_static_set_value)(unity_structs::il2cppFieldInfo*, void*) = nullptr;
 		inline void* (__fastcall* il2cpp_string_new)(const char*) = nullptr;
+		inline void* (__fastcall* il2cpp_object_new)(unity_structs::il2cppClass*) = nullptr;
 
 		// --------------------------
 		// Validate exports & bind
@@ -414,6 +416,7 @@ namespace il2cpp {
 			if (auto s = bind(il2cpp_field_set_value, r_il2cpp_field_set_value, Il2CppStatus::Missing_field_get_set); s != Il2CppStatus::OK) return s;
 			if (auto s = bind(il2cpp_field_static_get_value, r_il2cpp_field_static_get_value, Il2CppStatus::Missing_field_get_set); s != Il2CppStatus::OK) return s;
 			if (auto s = bind(il2cpp_field_static_set_value, r_il2cpp_field_static_set_value, Il2CppStatus::Missing_field_get_set); s != Il2CppStatus::OK) return s;
+			if (auto s = bind(il2cpp_object_new, r_il2cpp_object_new, Il2CppStatus::GetProcAddressFailed); s != Il2CppStatus::OK) return s;
 
 			if (r_il2cpp_string_new) il2cpp_string_new = r_il2cpp_string_new.value;
 			return Il2CppStatus::OK;
@@ -613,6 +616,45 @@ namespace il2cpp {
 
 		_internal::il2cpp_field_static_set_value(fld, const_cast<T*>(&value));
 		return Il2CppStatus::OK;
+	}
+
+	// ------------------------------------
+	// Object Creation
+	// ------------------------------------
+	template <typename T = void*>
+	inline Result<T> create_object(_internal::unity_structs::il2cppClass* klass) {
+		if (!klass) return { Il2CppStatus::ClassNotFound, nullptr };
+		if (!_internal::il2cpp_object_new) return { Il2CppStatus::GetProcAddressFailed, nullptr };
+
+		auto obj = _internal::il2cpp_object_new(klass);
+		if (!obj) return { Il2CppStatus::InvalidArgs, nullptr };
+
+		return { Il2CppStatus::OK, reinterpret_cast<T>(obj) };
+	}
+
+	template <typename T = void*, typename... CtorArgs>
+	inline Result<T> create_object(
+		const std::string& ns,
+		const std::string& class_name,
+		const std::string& assembly_name,
+		CtorArgs... ctor_args)
+	{
+		auto klass = find_class(ns, class_name, assembly_name);
+		if (!klass) return { klass.status, nullptr };
+
+		if (!_internal::il2cpp_object_new) return { Il2CppStatus::GetProcAddressFailed, nullptr };
+		auto obj = _internal::il2cpp_object_new(klass.value);
+		if (!obj) return { Il2CppStatus::InvalidArgs, nullptr };
+
+		if constexpr (sizeof...(CtorArgs) > 0) {
+			auto mi_ctor = get_method(ns, class_name, ".ctor", assembly_name, sizeof...(CtorArgs));
+			if (!mi_ctor) return { mi_ctor.status, nullptr };
+
+			auto ctor_result = call_function<void>(mi_ctor.value, obj, ctor_args...);
+			if (!ctor_result) return { ctor_result.status, nullptr };
+		}
+
+		return { Il2CppStatus::OK, reinterpret_cast<T>(obj) };
 	}
 
 	// ------------------------------------
