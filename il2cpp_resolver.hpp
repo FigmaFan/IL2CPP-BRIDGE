@@ -412,6 +412,8 @@ namespace il2cpp {
 			if (auto s = bind(il2cpp_class_get_field_from_name, r_il2cpp_class_get_field_from_name, Il2CppStatus::Missing_class_get_field_from_name); s != Il2CppStatus::OK) return s;
 			if (auto s = bind(il2cpp_field_get_value, r_il2cpp_field_get_value, Il2CppStatus::Missing_field_get_set); s != Il2CppStatus::OK) return s;
 			if (auto s = bind(il2cpp_field_set_value, r_il2cpp_field_set_value, Il2CppStatus::Missing_field_get_set); s != Il2CppStatus::OK) return s;
+			if (auto s = bind(il2cpp_field_static_get_value, r_il2cpp_field_static_get_value, Il2CppStatus::Missing_field_get_set); s != Il2CppStatus::OK) return s;
+			if (auto s = bind(il2cpp_field_static_set_value, r_il2cpp_field_static_set_value, Il2CppStatus::Missing_field_get_set); s != Il2CppStatus::OK) return s;
 
 			if (r_il2cpp_string_new) il2cpp_string_new = r_il2cpp_string_new.value;
 			return Il2CppStatus::OK;
