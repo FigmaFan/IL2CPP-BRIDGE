@@ -499,6 +499,45 @@ namespace il2cpp {
 		return { Il2CppStatus::OK, klass };
 	}
 
+	// Class size
+	inline Result<size_t>
+		get_class_size(const std::string& ns,
+			const std::string& class_name,
+			const std::string& assembly_name = IL2CPP_FALLBACK_ASSEMBLY)
+	{
+		if (ns.empty() || class_name.empty() || assembly_name.empty())
+			return { Il2CppStatus::InvalidArgs, 0 };
+
+		auto c = find_class(ns, class_name, assembly_name);
+		if (!c) return { c.status, 0 };
+
+		auto base_addr = reinterpret_cast<uintptr_t>(c.value);
+
+		size_t offset = sizeof(_internal::unity_structs::Il2CppClass_1) + sizeof(void*) * 2;
+
+		offset += offsetof(_internal::unity_structs::Il2CppClass_2, instance_size);
+
+		auto instance_size = *reinterpret_cast<uint32_t*>(base_addr + offset);
+
+		return { Il2CppStatus::OK, static_cast<size_t>(instance_size) };
+	}
+
+	inline Result<size_t>
+		get_class_size(_internal::unity_structs::il2cppClass* klass)
+	{
+		if (!klass) return { Il2CppStatus::InvalidArgs, 0 };
+
+		auto base_addr = reinterpret_cast<uintptr_t>(klass);
+
+		size_t offset = sizeof(_internal::unity_structs::Il2CppClass_1) + sizeof(void*) * 2;
+
+		offset += offsetof(_internal::unity_structs::Il2CppClass_2, instance_size);
+
+		auto instance_size = *reinterpret_cast<uint32_t*>(base_addr + offset);
+
+		return { Il2CppStatus::OK, static_cast<size_t>(instance_size) };
+	}
+
 	inline Result<_internal::unity_structs::il2cppMethodInfo*>
 		get_method(const std::string& ns,
 			const std::string& class_name,
